@@ -120,7 +120,7 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
 
         recentPlaylistPanel.add(JLabel("recentPlaylistPanel"))
 
-        cardPanel.add(playlistScrollPane, "Home")
+        cardPanel.add(playlistScrollPane, "Playlist")
         cardPanel.add(playbackPanel, "Playback")
         cardPanel.add(recentPlaylistPanel, "Recently Played")
 
@@ -131,7 +131,7 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
 
         // Panel that contains the bullets
         val bulletPanel = JPanel(FlowLayout(FlowLayout.CENTER, 15, 5))
-        val bullet1: JButton = createBulletButton(cardLayout, cardPanel, "Home")
+        val bullet1: JButton = createBulletButton(cardLayout, cardPanel, "Playlist")
         val bullet2: JButton = createBulletButton(cardLayout, cardPanel, "Playback")
         val bullet3: JButton = createBulletButton(cardLayout, cardPanel, "Recently Played")
         bullets[0] = bullet1
