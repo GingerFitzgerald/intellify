@@ -159,7 +159,7 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
     }
 
     private fun createPlaylistItemPanel(it: Playlist): JPanel {
-        val panel = JPanel(FlowLayout())
+        val panel = JPanel(FlowLayout(FlowLayout.LEFT))
         val cover: BufferedImage = ImageIO.read(URL(it.coverImage))
         val scaledCover = cover.getScaledInstance(32, 32, Image.SCALE_SMOOTH)
 
