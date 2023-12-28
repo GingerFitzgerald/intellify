@@ -1,5 +1,6 @@
 package com.github.kikimanjaro.intellify.services
 
+import com.github.kikimanjaro.intellify.models.Playlist
 import com.github.kikimanjaro.intellify.services.Secret.Companion.clientId
 import com.github.kikimanjaro.intellify.services.Secret.Companion.clientSecret
 import com.github.kikimanjaro.intellify.ui.SpotifyPanel
@@ -11,7 +12,9 @@ import com.intellij.remoteServer.util.CloudConfigurationUtil.createCredentialAtt
 import se.michaelthelin.spotify.SpotifyApi
 import se.michaelthelin.spotify.SpotifyHttpManager
 import se.michaelthelin.spotify.enums.AuthorizationScope
+import se.michaelthelin.spotify.enums.ModelObjectType
 import se.michaelthelin.spotify.exceptions.detailed.UnauthorizedException
+import se.michaelthelin.spotify.model_objects.specification.Image
 import se.michaelthelin.spotify.model_objects.specification.Track
 import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeUriRequest
 import java.io.BufferedReader
@@ -30,24 +33,26 @@ object SpotifyService {
     private const val accesServiceName = "Intellify-acces"
     private const val refreshServiceName = "Intellify-refresh"
     private val redirectUri =
-        SpotifyHttpManager.makeUri("http://localhost:30498/callback")
+            SpotifyHttpManager.makeUri("http://localhost:30498/callback")
     private val spotifyApi = SpotifyApi.Builder()
-        .setClientId(clientId)
-        .setClientSecret(clientSecret)
-        .setRedirectUri(redirectUri)
-        .setAccessToken(retrieveAccessToken())
-        .setRefreshToken(retrieveRefreshToken())
-        .build()
+            .setClientId(clientId)
+            .setClientSecret(clientSecret)
+            .setRedirectUri(redirectUri)
+            .setAccessToken(retrieveAccessToken())
+            .setRefreshToken(retrieveRefreshToken())
+            .build()
 
     private val authorizationCodeUriRqst = AuthorizationCodeUriRequest.Builder().client_id(clientId)
-        .redirect_uri(SpotifyHttpManager.makeUri("http://localhost:30498/callback")).show_dialog(true)
-        .response_type("code").scope(
-            AuthorizationScope.USER_LIBRARY_READ,
-            AuthorizationScope.APP_REMOTE_CONTROL,
-            AuthorizationScope.USER_READ_CURRENTLY_PLAYING,
-            AuthorizationScope.USER_MODIFY_PLAYBACK_STATE,
-            AuthorizationScope.USER_TOP_READ
-        ).build()
+            .redirect_uri(SpotifyHttpManager.makeUri("http://localhost:30498/callback")).show_dialog(true)
+            .response_type("code").scope(
+                    AuthorizationScope.USER_LIBRARY_READ,
+                    AuthorizationScope.APP_REMOTE_CONTROL,
+                    AuthorizationScope.USER_READ_CURRENTLY_PLAYING,
+                    AuthorizationScope.USER_READ_PLAYBACK_STATE,
+                    AuthorizationScope.USER_MODIFY_PLAYBACK_STATE,
+                    AuthorizationScope.USER_TOP_READ,
+                    AuthorizationScope.PLAYLIST_READ_PRIVATE
+            ).build()
     var code = retrieveCode()
     var title = ""
     var artist = ""
@@ -235,6 +240,49 @@ object SpotifyService {
         }
     }
 
+    fun startPlaylist(id: String) {
+        if (id.isNotBlank()) {
+            val playback = spotifyApi.informationAboutUsersCurrentPlayback.build().execute();
+            if (playback.context.type == ModelObjectType.PLAYLIST && playback.context.uri.split(":").last() == id) {
+                if (!isPlaying) {
+                    startTrack()
+                }
+                return
+            }
+            spotifyApi.startResumeUsersPlayback().context_uri("spotify:playlist:$id").build().execute()
+        }
+    }
+
+    fun getCurrentUsersPlaylists(): List<Playlist> {
+        try {
+            if (code.isNotEmpty() && spotifyApi.accessToken != null && spotifyApi.accessToken.isNotEmpty()) {
+                val execute = spotifyApi.listOfCurrentUsersPlaylists.build().execute()
+                return execute.items.map {
+                    val cover: Image? = it.images.find { it.width != null && it.width < 100 }
+                    val builder = Playlist.builder()
+                    if (cover != null && !cover.url.isNullOrBlank()) {
+                        builder.setCoverImage(cover.url)
+                    } else if (it.images[0] != null && !it.images[0].url.isNullOrBlank()) {
+                        builder.setCoverImage(it.images[0].url)
+                    } else {
+                        builder.setCoverImage("")
+                    }
+                    builder.setId(it.id)
+                            .setName(it.name)
+                }
+                        .map { builder -> builder.build() }
+                        .toList()
+            }
+        } catch (e: CompletionException) {
+            println("Error: " + e.cause!!.message)
+        } catch (e: CancellationException) {
+            println("Async operation cancelled.")
+        } catch (e: Exception) {
+            println("Error: " + e.message)
+        }
+        return emptyList()
+    }
+
     fun openServer() {
         val server = ServerSocket(30498)
 //        println("Server is running on port ${server.localPort}")
@@ -253,29 +301,29 @@ object SpotifyService {
                     val line = reader.readLine()
                     writer.write("HTTP/1.1 200 OK\r\n") //TODO: make this beautiful, maybe with an image
                     writer.write(
-                        "<!DOCTYPE html>\n" +
-                                "<html lang=\"en\">\n" +
-                                "<head>\n" +
-                                "    <meta charset=\"UTF-8\">\n" +
-                                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
-                                "    <title>My html page</title>\n" +
-                                "</head>\n" +
-                                "<body>\n" +
-                                "\n" +
-                                "    <p>\n" +
-                                "        Thank you for using Intellify.\n" +
-                                "    </p>\n" +
-                                "    \n" +
-                                "    <p>\n" +
-                                "         You can close this, it's useless now :p\n" +
-                                "    </p>\n" +
-                                "    \n" +
-                                "    <p>\n" +
-                                "         KikiManjaro\n" +
-                                "    </p>\n" +
-                                "    \n" +
-                                "</body>\n" +
-                                "</html>"
+                            "<!DOCTYPE html>\n" +
+                                    "<html lang=\"en\">\n" +
+                                    "<head>\n" +
+                                    "    <meta charset=\"UTF-8\">\n" +
+                                    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+                                    "    <title>My html page</title>\n" +
+                                    "</head>\n" +
+                                    "<body>\n" +
+                                    "\n" +
+                                    "    <p>\n" +
+                                    "        Thank you for using Intellify.\n" +
+                                    "    </p>\n" +
+                                    "    \n" +
+                                    "    <p>\n" +
+                                    "         You can close this, it's useless now :p\n" +
+                                    "    </p>\n" +
+                                    "    \n" +
+                                    "    <p>\n" +
+                                    "         KikiManjaro\n" +
+                                    "    </p>\n" +
+                                    "    \n" +
+                                    "</body>\n" +
+                                    "</html>"
                     )
                     writer.flush()
                     code = line.split("=")[1].split(" ")[0]
@@ -296,7 +344,7 @@ object SpotifyService {
 
     private fun saveCode(newCode: String) {
         val credentialAttributes: CredentialAttributes? =
-            createCredentialAttributes(codeServiceName, "user") // see previous sample
+                createCredentialAttributes(codeServiceName, "user") // see previous sample
         val credentials = Credentials(codeServiceName, newCode)
         PasswordSafe.instance.set(credentialAttributes!!, credentials)
     }
@@ -308,7 +356,7 @@ object SpotifyService {
 
     private fun saveAccessToken(token: String) {
         val credentialAttributes: CredentialAttributes? =
-            createCredentialAttributes(accesServiceName, "user") // see previous sample
+                createCredentialAttributes(accesServiceName, "user") // see previous sample
         val credentials = Credentials(accesServiceName, token)
         PasswordSafe.instance.set(credentialAttributes!!, credentials)
     }
@@ -320,7 +368,7 @@ object SpotifyService {
 
     private fun saveRefreshToken(token: String) {
         val credentialAttributes: CredentialAttributes? =
-            createCredentialAttributes(refreshServiceName, "user") // see previous sample
+                createCredentialAttributes(refreshServiceName, "user") // see previous sample
         val credentials = Credentials(refreshServiceName, token)
         PasswordSafe.instance.set(credentialAttributes!!, credentials)
     }

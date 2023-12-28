@@ -1,5 +1,6 @@
 package com.github.kikimanjaro.intellify.services
 
+import com.intellij.openapi.ui.popup.ActiveIcon
 import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.wm.StatusBar
 import javax.swing.Icon
@@ -14,6 +15,7 @@ class SpotifyStatusUpdater(
     val pauseIcon: Icon = IconLoader.getIcon("/icons/pause.svg", this::class.java)
     val nextIcon: Icon = IconLoader.getIcon("/icons/next.svg", this::class.java)
     val prevIcon: Icon = IconLoader.getIcon("/icons/prev.svg", this::class.java)
+    val bulletPointIcon: ActiveIcon = ActiveIcon(IconLoader.getIcon("/icons/dot-active.svg", this::class.java), IconLoader.getIcon("/icons/dot.svg", this::class.java))
     val currentIcon: Icon
         get() = if (SpotifyService.title.isNotEmpty()) spotifyActiveIcon else spotifyInactiveIcon
 

@@ -1,7 +1,9 @@
 package com.github.kikimanjaro.intellify.ui
 
+import com.github.kikimanjaro.intellify.models.Playlist
 import com.github.kikimanjaro.intellify.services.SpotifyService
 import com.github.kikimanjaro.intellify.services.SpotifyStatusUpdater
+import com.intellij.openapi.ui.popup.ActiveIcon
 import java.awt.*
 import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
@@ -18,6 +20,7 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
     private val playPauseButton: JButton
     private val prevButton: JButton
     private val nextButton: JButton
+    private val bullets: Array<JButton> = Array(3) { JButton() }
 
     private val artistNameLabel: JLabel
     private val songNameLabel: JLabel
@@ -71,12 +74,12 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
             update()
         }
 
-        slider = object  : JSlider(0, SpotifyService.durationMs){
+        slider = object : JSlider(0, SpotifyService.durationMs) {
             override fun updateUI() {
                 setUI(CustomSliderUI(this));
             }
         }
-        slider.setBorder(BorderFactory.createEmptyBorder(6,0,4,0));
+        slider.setBorder(BorderFactory.createEmptyBorder(6, 0, 4, 0));
         slider.value = SpotifyService.progressInMs
         slider.addMouseListener(object : java.awt.event.MouseAdapter() {
             override fun mouseReleased(e: java.awt.event.MouseEvent) {
@@ -88,18 +91,87 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
             }
         })
 
+        // Create a CardLayout that will contain the panel
+        val cardLayout = CardLayout()
+        val cardPanel = JPanel(cardLayout)
+
+        // Panels to be displayed
+        val playbackPanel: JPanel = JPanel(BorderLayout())
+        val recentPlaylistPanel: JPanel = JPanel()
+        recentPlaylistPanel.layout = BoxLayout(recentPlaylistPanel, BoxLayout.Y_AXIS)
+
+        val homePanel: JPanel = JPanel()
+        homePanel.layout = BoxLayout(homePanel, BoxLayout.Y_AXIS)
+
+        val playlistScrollPane = JScrollPane()
+        playlistScrollPane.preferredSize = Dimension(playlistScrollPane.preferredSize.width, 300)
+        playlistScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER)
+        playlistScrollPane.setViewportView(homePanel)
+
+        val playlistPanels: List<JPanel> = SpotifyService.getCurrentUsersPlaylists()
+                .map { createPlaylistItemPanel(it) }
+                .toList()
+
+        playlistPanels.forEach { homePanel.add(it) }
+        homePanel.revalidate()
+        homePanel.repaint()
+
+
+        recentPlaylistPanel.add(JLabel("recentPlaylistPanel"))
+
+        cardPanel.add(playlistScrollPane, "Home")
+        cardPanel.add(playbackPanel, "Playback")
+        cardPanel.add(recentPlaylistPanel, "Recently Played")
+
         // Add the buttons to the button panel
         buttonPanel.add(prevButton, BorderLayout.WEST)
         buttonPanel.add(playPauseButton, BorderLayout.CENTER)
         buttonPanel.add(nextButton, BorderLayout.EAST)
 
+        // Panel that contains the bullets
+        val bulletPanel = JPanel(FlowLayout(FlowLayout.CENTER, 15, 5))
+        val bullet1: JButton = createBulletButton(cardLayout, cardPanel, "Home")
+        val bullet2: JButton = createBulletButton(cardLayout, cardPanel, "Playback")
+        val bullet3: JButton = createBulletButton(cardLayout, cardPanel, "Recently Played")
+        bullets[0] = bullet1
+        bullets[1] = bullet2
+        bullets[2] = bullet3
+        bullets.forEach { bulletPanel.add(it) }
+
         val bottomPanel = JPanel(BorderLayout())
         bottomPanel.add(slider, BorderLayout.NORTH)
         bottomPanel.add(buttonPanel, BorderLayout.CENTER)
 
-        add(titlePanel, BorderLayout.NORTH)
-        add(imageLabel, BorderLayout.CENTER)
-        add(bottomPanel, BorderLayout.SOUTH)
+        playbackPanel.add(titlePanel, BorderLayout.NORTH)
+        playbackPanel.add(imageLabel, BorderLayout.CENTER)
+        playbackPanel.add(bottomPanel, BorderLayout.SOUTH)
+
+        add(cardPanel, BorderLayout.CENTER)
+        add(bulletPanel, BorderLayout.SOUTH)
+
+        if (SpotifyService.isPlaying) {
+            bullet2.doClick()
+        } else {
+            bullet1.doClick()
+        }
+
+    }
+
+    private fun createPlaylistItemPanel(it: Playlist): JPanel {
+        val panel = JPanel(FlowLayout())
+        val cover: BufferedImage = ImageIO.read(URL(it.coverImage))
+        val scaledCover = cover.getScaledInstance(32, 32, Image.SCALE_SMOOTH)
+
+        val playlistNameLabel = JLabel(it.name)
+        panel.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mouseClicked(e: java.awt.event.MouseEvent) {
+                SpotifyService.startPlaylist(it.id)
+            }
+        })
+
+        panel.add(JLabel(ImageIcon(scaledCover)))
+        panel.add(playlistNameLabel)
+        return panel
     }
 
     fun update() {
@@ -121,6 +193,16 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
 
         slider.value = SpotifyService.progressInMs
     }
+
+    private fun createBulletButton(cardLayout: CardLayout, cardPanel: JPanel, cardName: String): JButton {
+        val bulletPointIcon: ActiveIcon = spotifyStatusUpdater.bulletPointIcon
+        val bullet = JButton(bulletPointIcon)
+        bullet.addActionListener {
+            bullets.forEach { (it.icon as ActiveIcon).setActive(it == bullet) }
+            cardLayout.show(cardPanel, cardName)
+        }
+        return bullet
+    }
 }
 
 private class CustomSliderUI(b: JSlider?) : BasicSliderUI(b) {
@@ -135,12 +217,12 @@ private class CustomSliderUI(b: JSlider?) : BasicSliderUI(b) {
             trackRect.width = TRACK_WIDTH
         }
         trackShape.setRoundRect(
-            trackRect.x.toFloat(),
-            trackRect.y.toFloat(),
-            trackRect.width.toFloat(),
-            trackRect.height.toFloat(),
-            TRACK_ARC.toFloat(),
-            TRACK_ARC.toFloat()
+                trackRect.x.toFloat(),
+                trackRect.y.toFloat(),
+                trackRect.width.toFloat(),
+                trackRect.height.toFloat(),
+                TRACK_ARC.toFloat(),
+                TRACK_ARC.toFloat()
         )
     }
 
@@ -201,14 +283,14 @@ private class CustomSliderUI(b: JSlider?) : BasicSliderUI(b) {
                 g2.clipRect(0, thumbPos, slider.width, slider.height - thumbPos)
             }
         }
-        g2.color = Color(29,184,84)
+        g2.color = Color(29, 184, 84)
         g2.fill(trackShape)
         g2.clip = clip
     }
 
     override fun paintThumb(g: Graphics) {
         g.color = Color.WHITE
-        g.fillOval(thumbRect.x + thumbRect.width / 4, thumbRect.y + thumbRect.height / 4 , thumbRect.width /2, thumbRect.height /2)
+        g.fillOval(thumbRect.x + thumbRect.width / 4, thumbRect.y + thumbRect.height / 4, thumbRect.width / 2, thumbRect.height / 2)
     }
 
     override fun paintFocus(g: Graphics) {}
