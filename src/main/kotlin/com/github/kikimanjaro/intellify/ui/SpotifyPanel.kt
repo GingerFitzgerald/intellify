@@ -100,21 +100,21 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
         val recentPlaylistPanel: JPanel = JPanel()
         recentPlaylistPanel.layout = BoxLayout(recentPlaylistPanel, BoxLayout.Y_AXIS)
 
-        val homePanel: JPanel = JPanel()
-        homePanel.layout = BoxLayout(homePanel, BoxLayout.Y_AXIS)
+        val playlistPanel: JPanel = JPanel()
+        playlistPanel.layout = BoxLayout(playlistPanel, BoxLayout.Y_AXIS)
 
         val playlistScrollPane = JScrollPane()
         playlistScrollPane.preferredSize = Dimension(playlistScrollPane.preferredSize.width, 300)
         playlistScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER)
-        playlistScrollPane.setViewportView(homePanel)
+        playlistScrollPane.setViewportView(playlistPanel)
 
         val playlistPanels: List<JPanel> = SpotifyService.getCurrentUsersPlaylists()
                 .map { createPlaylistItemPanel(it) }
                 .toList()
 
-        playlistPanels.forEach { homePanel.add(it) }
-        homePanel.revalidate()
-        homePanel.repaint()
+        playlistPanels.forEach { playlistPanel.add(it) }
+        playlistPanel.revalidate()
+        playlistPanel.repaint()
 
 
         recentPlaylistPanel.add(JLabel("recentPlaylistPanel"))
