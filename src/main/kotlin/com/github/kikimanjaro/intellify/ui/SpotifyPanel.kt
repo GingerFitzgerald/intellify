@@ -106,6 +106,7 @@ class SpotifyPanel(val spotifyStatusUpdater: SpotifyStatusUpdater) : JPanel(Bord
         val playlistScrollPane = JScrollPane()
         playlistScrollPane.preferredSize = Dimension(playlistScrollPane.preferredSize.width, 300)
         playlistScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER)
+        playlistScrollPane.verticalScrollBar.unitIncrement = 15
         playlistScrollPane.setViewportView(playlistPanel)
 
         val playlistPanels: List<JPanel> = SpotifyService.getCurrentUsersPlaylists()
